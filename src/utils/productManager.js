@@ -4,7 +4,7 @@ class ProductManager {
     this.path = `./src/data/${path}`;
   }
   addProduct = async ({title, description, code, price, stock, thumbnail}) => {
-    if(!title || !description || !code || !price || !stock){
+    if(title || description || code || price || stock){
       return {success:false,message:"Compruebe los datos solicitados (title, description, code, price, stock, thumbnail) para añadir correctamente su producto"}
     }
     if (fs.existsSync(this.path)) {

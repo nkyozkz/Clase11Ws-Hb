@@ -1,85 +1,60 @@
 import { Router } from "express";
-import ProductManager from "../managers/ProductManager.js";
-
+import productosEnBd from "../utils/productManager.js";
 const router = Router();
-const productList = new ProductManager('./src/productos.json')
+const productManager = productosEnBd;
 
-router.get('/', (req,res) => {
-    res.status(200).send(productList.getProducts())
-})
-
-router.get('/:pid', (req,res) => {
-    const { pid } = req.params;
-
-    const result = productList.getProductByID(pid);
-
-    if( result.id ){
-        res.status(200).send(result)
-    }else{
-        res.status(400).send(result)
+router.get("/", async (req, res) => {
+  const productos = await productManager.getProducts();
+  if (productos) {
+    if (req.query.limit <= productos.length && req.query.limit > 0) {
+      res.send(productos.slice(0, req.query.limit));
+    } else if (req.query.limit) {
+      res.send(`<h1>El limite de productos no puede ser nulo ni mayor a los productos dados, productos actuales: </h1><br>
+      ${productos.map((p) => `<h2>${p.title}</h2>`)}`);
+    } else {
+      res.send(productos);
     }
-})
+  } else {
+    res.send(`No se encontro ningun producto`);
+  }
+});
 
-router.post('/', (req,res) => {
-    const {title, description, code, price, status,  stock, category, thumbnails} = req.body;
+router.post("/", async (req, res) => {
+  let nuevoProducto = req.body;
+  const response = await productManager.addProduct(nuevoProducto);
+  if (!response.success) {
+    return res.status(400).send(response.message);
+  }
+  res.status(200).send(response.message);
+});
 
-    if(!title){
-        throw new Error('Title is required.')
+router.get("/:pid", async (req, res) => {
+  let producto = await productManager.getProductById(req.params.pid);
+  producto ? res.send(producto) : res.send("El id del producto no existe");
+});
+
+router.put("/:pid", async (req, res) => {
+  let producto = await productManager.getProductById(req.params.pid);
+  if (producto) {
+    let nuevaInformacion = req.body;
+    if (nuevaInformacion) {
+      await productManager.uptadeProduct(req.params.pid, nuevaInformacion);
+      res.send(`Actualizado correctamente`);
+    } else {
+      res.send(`Coloca la información a cambiar`);
     }
+  } else {
+    res.send("El id del producto no existe");
+  }
+});
 
-    if(!description){
-        throw new Error('Description is required.')
-    }
-
-    if(!code){
-        throw new Error('Code is required.')
-    }
-
-    if(!price){
-        throw new Error('Price is required.')
-    }
-
-    if(!status){
-        throw new Error('Status is required.')
-    }
-
-    if(!stock){
-        throw new Error('Stock is required.')
-    }
-
-    if(!category){
-        throw new Error('Category is required.')
-    }
-
-    const product = {title, description, code, price, status, stock, category, thumbnails}
-    const result = productList.addProduct(product);
-    res.status(200).send(result)
-})
-
-router.put('/:pid', (req,res) => {
-    const {pid} = req.params;
-    const {title, description, code, price, status,  stock, category, thumbnails} = req.body;
-
-    const result = productList.updateProduct(pid, {title, description, code, price, status,  stock, category, thumbnails});
-
-    if(result.err){
-        res.status(400).send(result)
-    }else{
-        res.status(200).send(result)
-    }
-})
-
-router.delete('/:pid', (req, res) => {
-    const { pid } = req.params;
-
-    const result = productList.deleteProduct(pid);
-
-    if(result.err){
-        res.status(400).send(result)
-    }else{
-        res.status(200).send(result)
-    }
-    
-})
+router.delete("/:pid", async (req, res) => {
+  let producto = await productManager.getProductById(req.params.pid);
+  if (producto) {
+    res.send(await productManager.deleteProduct(req.params.pid));
+  } else {
+    res.send("El id del producto no existe");
+  }
+});
 
 export default router;

@@ -1,39 +1,54 @@
 import { Router } from "express";
-import CartManager from "../managers/CartManager.js";
-
 const router = Router();
-const carts = new CartManager('./src/carritos.json')
+import carrito from "../utils/cartManager.js";
+import productosEnBd from "../utils/productManager.js";
+const productManager = productosEnBd;
 
-
-router.post('/', (req, res) => {
-    // · crear un carrito
-    const cart = carts.createCart();
-    res.status(200).send(cart);
-})
-
-router.get('/:cid', (req, res) => {
-    // · conseguir un carrito por su id
-    const { cid } = req.params;
-
-    const getCart = carts.getCartByID(cid)
-    if(getCart.id){
-        res.status(200).send(getCart)
-    }else{
-        res.status(400).send(getCart)
+router.post("/", async (req, res) => {
+  res.send(await carrito.addCart());
+});
+router.get("/:cid", async (req, res) => {
+  res.send(await carrito.getCart(req.params.cid));
+});
+router.post("/:cid/products/:pid", async (req, res) => {
+  if (req.params.cid && req.params.pid) {
+    let idCarrito;
+    let idProducto;
+    if (
+      (await carrito.getCart(req.params.cid)) ==
+      `Carrito no encontrado, verifique el id ingresado`
+    ) {
+      idCarrito = false;
+    } else {
+      idCarrito = true;
     }
-})
-
-router.post('/:cid/product/:pid', (req, res) => {
-    // agregar el producto al arreglo de carrito, product id & quantity.
-    const { cid, pid } = req.params;
-    
-    const result = carts.addProductToCart(cid, pid)
-    
-    if(result.cart){
-        res.status(200).send(result)
-    }else{
-        res.status(400).send(result)
+    if (
+      (await productManager.getProductById(req.params.pid)) ==
+      `Producto no encontrado`
+    ) {
+      idProducto = false;
+    } else {
+      idProducto = true;
     }
-})
+    if (idProducto && idCarrito) {
+      await carrito.addProductInCart(req.params.cid, req.params.pid);
+      res.send(`Producto agregado con exito`);
+    } else if (idCarrito) {
+      res.send(
+        `El id del carrito es correcto, pero el del producto es incorrecto.`
+      );
+    } else if (idProducto) {
+      res.send(
+        `El id del producto es correcto, pero el del carrito es incorrecto.`
+      );
+    } else {
+      res.send(`Ambos id son incorrectos`);
+    }
+  } else {
+    res.send(
+      `Envia todos los parametros para poder agregar al carrito`
+    );
+  }
+});
 
 export default router;
